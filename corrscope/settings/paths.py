@@ -37,7 +37,7 @@ def get_ffmpeg_url() -> str:
     is_os_64 = platform.machine().endswith("64")
 
     def url(os_ver: str) -> str:
-        return f"https://ffmpeg.zeranoe.com/builds/{os_ver}/shared/ffmpeg-latest-{os_ver}-shared.zip"
+        return f"https://ffmpeg.zeranoe.com/builds/{os_ver}/shared/ffmpeg-4.2.2-{os_ver}-shared.zip"
 
     if sys.platform == "win32" and is_os_64:
         return url("win64")
