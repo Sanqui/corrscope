@@ -84,12 +84,17 @@ if TYPE_CHECKING:
 # Used by outputs.py.
 ByteBuffer = Union[bytes, np.ndarray]
 
-
-def period_to_color(period: float) -> str:
+def period_to_color(period: float, prev_period: float) -> str:
     if period == 0:
-        return "#ffffff"
+        return "#333333"
     key_number = 12 * log2(period/440) + 51 # not 41 because we want C to be red, I think
-    rgb = colorsys.hsv_to_rgb((key_number % 12) / 12, 1, 1)
+    # haha you can't just interpret period as frequency
+    value = 1.5 - min(key_number/12/12 + 0.5, 1.0)
+    key_number = (12-key_number) % 12
+
+    saturation = max(0, 1 - abs(period-prev_period) / 100)
+
+    rgb = colorsys.hsv_to_rgb(key_number / 12, saturation, value)
     return "#{:02x}{:02x}{:02x}".format(*[int(c*0xff) for c in rgb])
 
 
@@ -394,6 +399,7 @@ class AbstractMatplotlibRenderer(_RendererBackend, ABC):
         self._setup_axes(self.wave_nchans)
 
         self._artists: List["Artist"] = []
+        self._prev_periods = []
 
     _fig: "Figure"
 
@@ -588,7 +594,7 @@ class AbstractMatplotlibRenderer(_RendererBackend, ABC):
 
         # Plot lines over background
         line_width = cfg.line_width
-
+        
         # Foreach wave, plot dummy data.
         lines2d = []
         for wave_idx, (wave_data, period) in enumerate(dummy_datas):
@@ -611,11 +617,11 @@ class AbstractMatplotlibRenderer(_RendererBackend, ABC):
 
             lines2d.append(wave_lines)
             self._artists.extend(wave_lines)
+            self._prev_periods.append(0)
 
         return lambda datas: self._update_lines_stereo(lines2d, datas)
 
-    @staticmethod
-    def _update_lines_stereo(
+    def _update_lines_stereo(self, 
         lines2d: "List[List[Line2D]]", datas: List[np.ndarray]
     ) -> None:
         """
@@ -632,15 +638,18 @@ class AbstractMatplotlibRenderer(_RendererBackend, ABC):
 
         # Draw waveform data
         # Foreach wave
+        periods = []
         for wave_idx, (wave_data, period) in enumerate(datas):
             wave_lines = lines2d[wave_idx]
-            color = period_to_color(period)
+            color = period_to_color(period, self._prev_periods[wave_idx])
 
             # Foreach chan
             for chan_idx, chan_data in enumerate(wave_data.T):
                 chan_line = wave_lines[chan_idx]
                 chan_line.set_ydata(chan_data)
                 chan_line.set_color(color)
+            periods.append(period)
+        self._prev_periods = periods
 
     def _add_xy_line_mono(
         self, wave_idx: int, xs: Sequence[float], ys: Sequence[float], stride: int
