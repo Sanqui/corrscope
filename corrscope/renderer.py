@@ -9,6 +9,9 @@ Backend implementation does not know about RendererFrontend.
 
 import enum
 import os
+import random
+import colorsys
+from math import log2
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import (
@@ -80,6 +83,14 @@ if TYPE_CHECKING:
 
 # Used by outputs.py.
 ByteBuffer = Union[bytes, np.ndarray]
+
+
+def period_to_color(period: float) -> str:
+    if period == 0:
+        return "#ffffff"
+    key_number = 12 * log2(period/440) + 51 # not 41 because we want C to be red, I think
+    rgb = colorsys.hsv_to_rgb((key_number % 12) / 12, 1, 1)
+    return "#{:02x}{:02x}{:02x}".format(*[int(c*0xff) for c in rgb])
 
 
 def default_color() -> str:
@@ -580,7 +591,7 @@ class AbstractMatplotlibRenderer(_RendererBackend, ABC):
 
         # Foreach wave, plot dummy data.
         lines2d = []
-        for wave_idx, wave_data in enumerate(dummy_datas):
+        for wave_idx, (wave_data, period) in enumerate(dummy_datas):
             wave_zeros = np.zeros_like(wave_data)
 
             wave_axes = self._axes2d[wave_idx]
@@ -591,6 +602,7 @@ class AbstractMatplotlibRenderer(_RendererBackend, ABC):
             # Foreach chan
             for chan_idx, chan_zeros in enumerate(wave_zeros.T):
                 ax = wave_axes[chan_idx]
+                # TODO use period for color
                 line_color = self._line_params[wave_idx].color
                 chan_line: Line2D = ax.plot(
                     xs, chan_zeros, color=line_color, linewidth=line_width
@@ -620,13 +632,15 @@ class AbstractMatplotlibRenderer(_RendererBackend, ABC):
 
         # Draw waveform data
         # Foreach wave
-        for wave_idx, wave_data in enumerate(datas):
+        for wave_idx, (wave_data, period) in enumerate(datas):
             wave_lines = lines2d[wave_idx]
+            color = period_to_color(period)
 
             # Foreach chan
             for chan_idx, chan_data in enumerate(wave_data.T):
                 chan_line = wave_lines[chan_idx]
                 chan_line.set_ydata(chan_data)
+                chan_line.set_color(color)
 
     def _add_xy_line_mono(
         self, wave_idx: int, xs: Sequence[float], ys: Sequence[float], stride: int

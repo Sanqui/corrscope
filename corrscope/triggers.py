@@ -525,7 +525,7 @@ class CorrelationTrigger(MainTrigger):
         self.frames_since_spectrum += 1
 
         self.offset_viewport(peak_offset)
-        return trigger
+        return trigger, period
 
     def spectrum_rescale_buffer(self, data: np.ndarray) -> None:
         """

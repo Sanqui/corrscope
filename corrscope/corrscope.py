@@ -294,13 +294,14 @@ class CorrScope:
                     # Get trigger.
                     if not_benchmarking or benchmark_mode == BenchmarkMode.TRIGGER:
                         cache = PerFrameCache()
-                        trigger_sample = channel.trigger.get_trigger(sample, cache)
+                        trigger_sample, period = channel.trigger.get_trigger(sample, cache)
                     else:
                         trigger_sample = sample
+                        period = 0
 
                     # Get render data.
                     if should_render:
-                        render_datas.append(channel.get_render_around(trigger_sample))
+                        render_datas.append((channel.get_render_around(trigger_sample), period))
 
                 if not should_render:
                     continue
